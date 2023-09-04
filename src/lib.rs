@@ -17,13 +17,45 @@ use std::collections::HashMap;
 use std::convert::AsRef;
 use std::fmt;
 
-#[derive(Default)]
 pub struct Machine {
     dictionary: HashMap<String, Vec<Token>>,
     stack: Vec<i32>,
 }
 
+impl Default for Machine {
+    fn default() -> Self {
+        use Token::*;
+        use Word::*;
+
+        macro_rules! def {
+            ($name:literal, $($word:tt),+) => {
+                ($name.to_string(), vec![$( def!(@, $word) ),+])
+            };
+            (@, $val:literal) => {
+                Number($val as i32)
+            };
+            (@, $val:ident) => {
+                $val
+            };
+        }
+
+        let emit = Builtin(Emit);
+
+        Self::with_dictionary(HashMap::from([
+            def!("space", ' ', emit),
+            def!("cr", '\r', emit, '\n', emit),
+        ]))
+    }
+}
+
 impl Machine {
+    fn with_dictionary(dictionary: HashMap<String, Vec<Token>>) -> Self {
+        Self {
+            dictionary,
+            stack: Vec::new(),
+        }
+    }
+
     pub fn eval<'a>(&mut self, phrase: &'a str) -> Result<String, Error<'a>> {
         if let Some(def) = phrase.strip_prefix(':') {
             self.eval_def(def).map(|()| String::new())
