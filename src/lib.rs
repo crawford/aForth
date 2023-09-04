@@ -72,6 +72,15 @@ impl Machine {
 
                 match token {
                     Builtin(Dot) => output!(&pop!("dot").to_string(), out),
+                    Builtin(Emit) => match u32::try_from(pop!("emit")) {
+                        Ok(val) => output!(
+                            &char::from_u32(val)
+                                .ok_or(Error::UnicodeInvalid(val))?
+                                .to_string(),
+                            out
+                        ),
+                        _ => return Err(Error::Static("emit: out of bounds")),
+                    },
                     Builtin(Plus) => apply!("plus", +),
                     Number(n) => self.stack.push(n),
                 }
@@ -91,6 +100,7 @@ impl Machine {
         for string in strings {
             match string {
                 "." => tokens.push(Builtin(Dot)),
+                "emit" => tokens.push(Builtin(Emit)),
                 "+" => tokens.push(Builtin(Plus)),
                 w => match string.parse::<i32>() {
                     Ok(n) => tokens.push(Token::Number(n)),
@@ -110,6 +120,7 @@ impl Machine {
 pub enum Error<'a> {
     Static(&'a str),
     UndefinedWord(&'a str),
+    UnicodeInvalid(u32),
 }
 
 impl<'a> fmt::Display for Error<'a> {
@@ -119,6 +130,7 @@ impl<'a> fmt::Display for Error<'a> {
         match *self {
             Static(err) => f.write_str(err),
             UndefinedWord(w) => write!(f, "undefined word '{w}'"),
+            UnicodeInvalid(v) => write!(f, "emit: invalid unicode {v:#04x}"),
         }
     }
 }
@@ -126,6 +138,7 @@ impl<'a> fmt::Display for Error<'a> {
 #[derive(Clone, Copy)]
 enum Word {
     Dot,
+    Emit,
     Plus,
 }
 
