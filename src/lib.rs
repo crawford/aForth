@@ -114,6 +114,7 @@ impl Machine {
                         _ => return Err(Error::Static("emit: out of bounds")),
                     },
                     Builtin(Plus) => apply!("plus", +),
+                    Builtin(Spaces) => output!(&" ".repeat(pop!("spaces") as usize), out),
                     Number(n) => self.stack.push(n),
                 }
 
@@ -134,6 +135,7 @@ impl Machine {
                 "." => tokens.push(Builtin(Dot)),
                 "emit" => tokens.push(Builtin(Emit)),
                 "+" => tokens.push(Builtin(Plus)),
+                "spaces" => tokens.push(Builtin(Spaces)),
                 w => match string.parse::<i32>() {
                     Ok(n) => tokens.push(Token::Number(n)),
                     _ => tokens.extend_from_slice(
@@ -172,6 +174,7 @@ enum Word {
     Dot,
     Emit,
     Plus,
+    Spaces,
 }
 
 #[derive(Clone, Copy)]
