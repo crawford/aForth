@@ -83,6 +83,15 @@ impl Machine {
             };
         }
 
+        macro_rules! peek {
+            ($op:literal) => {
+                *self
+                    .stack
+                    .last()
+                    .ok_or(Error::Static(concat!($op, ": stack underflow")))?
+            };
+        }
+
         macro_rules! apply {
             ($name:literal, $op:tt) => {{
                 let o = pop!($name);
@@ -105,6 +114,10 @@ impl Machine {
 
                 match token {
                     Builtin(Dot) => output!(&pop!("dot").to_string(), out),
+                    Builtin(Drop) => {
+                        pop!("drop");
+                    }
+                    Builtin(Dup) => self.stack.push(peek!("dup")),
                     Builtin(Minus) => apply!("minus", -),
                     Builtin(Mod) => apply!("mod", %),
                     Builtin(Plus) => apply!("plus", +),
@@ -126,6 +139,12 @@ impl Machine {
                         _ => return Err(Error::Static("emit: out of bounds")),
                     },
                     Builtin(Spaces) => output!(&" ".repeat(pop!("spaces") as usize), out),
+                    Builtin(Swap) => {
+                        let a = pop!("swap");
+                        let b = pop!("swap");
+                        self.stack.push(a);
+                        self.stack.push(b);
+                    }
                     Number(n) => self.stack.push(n),
                 }
 
@@ -151,7 +170,10 @@ impl Machine {
                 "mod" => tokens.push(Builtin(Mod)),
                 "/mod" => tokens.push(Builtin(SlashMod)),
                 "emit" => tokens.push(Builtin(Emit)),
+                "drop" => tokens.push(Builtin(Drop)),
+                "dup" => tokens.push(Builtin(Dup)),
                 "spaces" => tokens.push(Builtin(Spaces)),
+                "swap" => tokens.push(Builtin(Swap)),
                 w => match string.parse::<i32>() {
                     Ok(n) => tokens.push(Token::Number(n)),
                     _ => tokens.extend_from_slice(
@@ -188,6 +210,8 @@ impl<'a> fmt::Display for Error<'a> {
 #[derive(Clone, Copy)]
 enum Word {
     Dot,
+    Drop,
+    Dup,
     Emit,
     Minus,
     Mod,
@@ -196,6 +220,7 @@ enum Word {
     SlashMod,
     Spaces,
     Star,
+    Swap,
 }
 
 #[derive(Clone, Copy)]
