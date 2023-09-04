@@ -85,7 +85,8 @@ impl Machine {
 
         macro_rules! apply {
             ($name:literal, $op:tt) => {{
-                let r = pop!($name) $op pop!($name);
+                let o = pop!($name);
+                let r = pop!($name) $op o;
                 self.stack.push(r)
             }}
         }
@@ -104,6 +105,10 @@ impl Machine {
 
                 match token {
                     Builtin(Dot) => output!(&pop!("dot").to_string(), out),
+                    Builtin(Minus) => apply!("minus", -),
+                    Builtin(Plus) => apply!("plus", +),
+                    Builtin(Slash) => apply!("slash", /),
+                    Builtin(Star) => apply!("star", *),
                     Builtin(Emit) => match u32::try_from(pop!("emit")) {
                         Ok(val) => output!(
                             &char::from_u32(val)
@@ -113,7 +118,6 @@ impl Machine {
                         ),
                         _ => return Err(Error::Static("emit: out of bounds")),
                     },
-                    Builtin(Plus) => apply!("plus", +),
                     Builtin(Spaces) => output!(&" ".repeat(pop!("spaces") as usize), out),
                     Number(n) => self.stack.push(n),
                 }
@@ -133,8 +137,11 @@ impl Machine {
         for string in strings {
             match string {
                 "." => tokens.push(Builtin(Dot)),
-                "emit" => tokens.push(Builtin(Emit)),
+                "-" => tokens.push(Builtin(Minus)),
                 "+" => tokens.push(Builtin(Plus)),
+                "*" => tokens.push(Builtin(Star)),
+                "/" => tokens.push(Builtin(Slash)),
+                "emit" => tokens.push(Builtin(Emit)),
                 "spaces" => tokens.push(Builtin(Spaces)),
                 w => match string.parse::<i32>() {
                     Ok(n) => tokens.push(Token::Number(n)),
@@ -173,8 +180,11 @@ impl<'a> fmt::Display for Error<'a> {
 enum Word {
     Dot,
     Emit,
+    Minus,
     Plus,
+    Slash,
     Spaces,
+    Star,
 }
 
 #[derive(Clone, Copy)]
