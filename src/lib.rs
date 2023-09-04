@@ -106,8 +106,15 @@ impl Machine {
                 match token {
                     Builtin(Dot) => output!(&pop!("dot").to_string(), out),
                     Builtin(Minus) => apply!("minus", -),
+                    Builtin(Mod) => apply!("mod", %),
                     Builtin(Plus) => apply!("plus", +),
                     Builtin(Slash) => apply!("slash", /),
+                    Builtin(SlashMod) => {
+                        let b = pop!("slash-mod");
+                        let a = pop!("slash-mod");
+                        self.stack.push(a % b);
+                        self.stack.push(a / b);
+                    }
                     Builtin(Star) => apply!("star", *),
                     Builtin(Emit) => match u32::try_from(pop!("emit")) {
                         Ok(val) => output!(
@@ -141,6 +148,8 @@ impl Machine {
                 "+" => tokens.push(Builtin(Plus)),
                 "*" => tokens.push(Builtin(Star)),
                 "/" => tokens.push(Builtin(Slash)),
+                "mod" => tokens.push(Builtin(Mod)),
+                "/mod" => tokens.push(Builtin(SlashMod)),
                 "emit" => tokens.push(Builtin(Emit)),
                 "spaces" => tokens.push(Builtin(Spaces)),
                 w => match string.parse::<i32>() {
@@ -181,8 +190,10 @@ enum Word {
     Dot,
     Emit,
     Minus,
+    Mod,
     Plus,
     Slash,
+    SlashMod,
     Spaces,
     Star,
 }
