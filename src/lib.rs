@@ -99,18 +99,28 @@ impl Machine {
     fn eval_expr<'a>(&mut self, phrase: &'a str) -> Result<String, Error<'a>> {
         macro_rules! pop {
             ($op:literal) => {
-                self.stack
-                    .pop()
-                    .ok_or(Error::Static(concat!($op, ": stack underflow")))?
+                pop!($op, 0)
+            };
+            ($op:literal, $n:literal) => {
+                self.stack.remove(
+                    self.stack
+                        .len()
+                        .checked_sub($n + 1)
+                        .ok_or(Error::Static(concat!($op, ": stack underflow")))?,
+                )
             };
         }
 
         macro_rules! peek {
             ($op:literal) => {
-                *self
+                peek!($op, 0)
+            };
+            ($op:literal, $n:literal) => {
+                self.stack[self
                     .stack
-                    .last()
-                    .ok_or(Error::Static(concat!($op, ": stack underflow")))?
+                    .len()
+                    .checked_sub($n + 1)
+                    .ok_or(Error::Static(concat!($op, ": stack underflow")))?]
             };
         }
 
@@ -143,13 +153,8 @@ impl Machine {
                     Builtin(Minus) => apply!("minus", -),
                     Builtin(Mod) => apply!("mod", %),
                     Builtin(Rot) => {
-                        let n3 = self.stack.remove(
-                            self.stack
-                                .len()
-                                .checked_sub(3)
-                                .ok_or(Error::Static("rot: stack underflow"))?,
-                        );
-                        self.stack.push(n3);
+                        let n = pop!("rot", 2);
+                        self.stack.push(n);
                     }
                     Builtin(Plus) => apply!("plus", +),
                     Builtin(Slash) => apply!("slash", /),
@@ -185,10 +190,8 @@ impl Machine {
                     },
                     Builtin(Spaces) => output!(&" ".repeat(pop!("spaces") as usize), out),
                     Builtin(Swap) => {
-                        let a = pop!("swap");
-                        let b = pop!("swap");
-                        self.stack.push(a);
-                        self.stack.push(b);
+                        let n = pop!("swap", 1);
+                        self.stack.push(n);
                     }
                     Number(n) => self.stack.push(n),
                 }
