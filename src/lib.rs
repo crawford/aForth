@@ -45,11 +45,29 @@ impl Default for Machine {
         let swap = Builtin(Swap);
 
         Self::with_dictionary(HashMap::from([
-            def!("space", ' ', emit),
-            def!("cr", '\r', emit, '\n', emit),
-            def!("over", swap, dup, rot, swap),
+            def!("space", ' ', emit),           // ( -- )
+            def!("cr", '\r', emit, '\n', emit), // ( -- )
+            def!("over", swap, dup, rot, swap), // ( n1 n2 -- n1 n2 n1 )
         ]))
     }
+}
+
+#[derive(Clone, Copy)]
+enum Word {
+    Dot,        // ( n -- )
+    Drop,       // ( n -- )
+    Dup,        // ( n -- n n )
+    Emit,       // ( n -- )
+    Minus,      // ( n1 n2 -- diff )
+    Mod,        // ( n1 n2 -- rem)
+    Plus,       // ( n1 n2 -- sum )
+    Rot,        // ( n1 n2 n3 -- n2 n3 n1 )
+    Slash,      // ( n1 n2 -- quot )
+    SlashMod,   // ( n1 n2 -- quot rem )
+    Spaces,     // ( n -- )
+    StackPrint, // ( -- )
+    Star,       // ( n1 n2 -- prod )
+    Swap,       // ( n1 n2 -- n2 n1 )
 }
 
 impl Machine {
@@ -234,24 +252,6 @@ impl<'a> fmt::Display for Error<'a> {
             UnicodeInvalid(v) => write!(f, "emit: invalid unicode {v:#04x}"),
         }
     }
-}
-
-#[derive(Clone, Copy)]
-enum Word {
-    Dot,
-    Drop,
-    Dup,
-    Emit,
-    Minus,
-    Mod,
-    Plus,
-    Rot,
-    Slash,
-    SlashMod,
-    Spaces,
-    StackPrint,
-    Star,
-    Swap,
 }
 
 #[derive(Clone, Copy)]
