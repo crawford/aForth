@@ -39,11 +39,15 @@ impl Default for Machine {
             };
         }
 
+        let dup = Builtin(Dup);
         let emit = Builtin(Emit);
+        let rot = Builtin(Rot);
+        let swap = Builtin(Swap);
 
         Self::with_dictionary(HashMap::from([
             def!("space", ' ', emit),
             def!("cr", '\r', emit, '\n', emit),
+            def!("over", swap, dup, rot, swap),
         ]))
     }
 }
@@ -120,6 +124,15 @@ impl Machine {
                     Builtin(Dup) => self.stack.push(peek!("dup")),
                     Builtin(Minus) => apply!("minus", -),
                     Builtin(Mod) => apply!("mod", %),
+                    Builtin(Rot) => {
+                        let n3 = self.stack.remove(
+                            self.stack
+                                .len()
+                                .checked_sub(3)
+                                .ok_or(Error::Static("rot: stack underflow"))?,
+                        );
+                        self.stack.push(n3);
+                    }
                     Builtin(Plus) => apply!("plus", +),
                     Builtin(Slash) => apply!("slash", /),
                     Builtin(SlashMod) => {
@@ -172,6 +185,7 @@ impl Machine {
                 "emit" => tokens.push(Builtin(Emit)),
                 "drop" => tokens.push(Builtin(Drop)),
                 "dup" => tokens.push(Builtin(Dup)),
+                "rot" => tokens.push(Builtin(Rot)),
                 "spaces" => tokens.push(Builtin(Spaces)),
                 "swap" => tokens.push(Builtin(Swap)),
                 w => match string.parse::<i32>() {
@@ -216,6 +230,7 @@ enum Word {
     Minus,
     Mod,
     Plus,
+    Rot,
     Slash,
     SlashMod,
     Spaces,
