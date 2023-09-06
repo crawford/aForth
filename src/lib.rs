@@ -204,8 +204,20 @@ impl Machine {
         use Token::*;
         use Word::*;
 
+        let mut comment = false;
         let mut tokens = Vec::new();
         for string in strings {
+            match (string, comment) {
+                ("(", true) => Err(Error::Static("unbalanced opening comment"))?,
+                (")", false) => Err(Error::Static("unbalanced closing comment"))?,
+                ("(", false) | (")", true) => {
+                    comment = !comment;
+                    continue;
+                }
+                (_, true) => continue,
+                _ => {}
+            }
+
             match string {
                 "." => tokens.push(Builtin(Dot)),
                 "-" => tokens.push(Builtin(Minus)),
