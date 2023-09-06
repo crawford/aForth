@@ -39,15 +39,18 @@ impl Default for Machine {
             };
         }
 
+        let drop = Builtin(Drop);
         let dup = Builtin(Dup);
         let emit = Builtin(Emit);
         let rot = Builtin(Rot);
         let swap = Builtin(Swap);
 
         Self::with_dictionary(HashMap::from([
-            def!("space", ' ', emit),           // ( -- )
-            def!("cr", '\r', emit, '\n', emit), // ( -- )
-            def!("over", swap, dup, rot, swap), // ( n1 n2 -- n1 n2 n1 )
+            def!("space", ' ', emit),                     // ( -- )
+            def!("cr", '\r', emit, '\n', emit),           // ( -- )
+            def!("over", swap, dup, rot, swap),           // ( n1 n2 -- n1 n2 n1 )
+            def!("2drop", drop, drop),                    // ( d -- )
+            def!("2dup", swap, dup, rot, dup, rot, swap), // ( d -- d d )
         ]))
     }
 }
@@ -68,6 +71,8 @@ enum Word {
     StackPrint, // ( -- )
     Star,       // ( n1 n2 -- prod )
     Swap,       // ( n1 n2 -- n2 n1 )
+    TwoOver,    // ( d1 d2 -- d1 d2 d1 )
+    TwoSwap,    // ( d1 d2 -- d2 d1 )
 }
 
 impl Machine {
@@ -193,6 +198,18 @@ impl Machine {
                         let n = pop!("swap", 1);
                         self.stack.push(n);
                     }
+                    Builtin(TwoOver) => {
+                        let n1 = peek!("2over", 3);
+                        let n2 = peek!("2over", 2);
+                        self.stack.push(n1);
+                        self.stack.push(n2);
+                    }
+                    Builtin(TwoSwap) => {
+                        let n1 = pop!("2swap", 3);
+                        let n2 = pop!("2swap", 2);
+                        self.stack.push(n1);
+                        self.stack.push(n2);
+                    }
                     Number(n) => self.stack.push(n),
                 }
 
@@ -228,6 +245,8 @@ impl Machine {
                 "*" => tokens.push(Builtin(Star)),
                 "/" => tokens.push(Builtin(Slash)),
                 ".S" => tokens.push(Builtin(StackPrint)),
+                "2over" => tokens.push(Builtin(TwoOver)),
+                "2swap" => tokens.push(Builtin(TwoSwap)),
                 "mod" => tokens.push(Builtin(Mod)),
                 "/mod" => tokens.push(Builtin(SlashMod)),
                 "emit" => tokens.push(Builtin(Emit)),
