@@ -141,6 +141,20 @@ impl Machine {
                         self.stack.push(a % b);
                         self.stack.push(a / b);
                     }
+                    Builtin(StackPrint) => {
+                        output!(
+                            &format!(
+                                "<{}> {}",
+                                self.stack.len(),
+                                self.stack
+                                    .iter()
+                                    .map(|n| n.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(" ")
+                            ),
+                            out
+                        )
+                    }
                     Builtin(Star) => apply!("star", *),
                     Builtin(Emit) => match u32::try_from(pop!("emit")) {
                         Ok(val) => output!(
@@ -180,6 +194,7 @@ impl Machine {
                 "+" => tokens.push(Builtin(Plus)),
                 "*" => tokens.push(Builtin(Star)),
                 "/" => tokens.push(Builtin(Slash)),
+                ".S" => tokens.push(Builtin(StackPrint)),
                 "mod" => tokens.push(Builtin(Mod)),
                 "/mod" => tokens.push(Builtin(SlashMod)),
                 "emit" => tokens.push(Builtin(Emit)),
@@ -234,6 +249,7 @@ enum Word {
     Slash,
     SlashMod,
     Spaces,
+    StackPrint,
     Star,
     Swap,
 }
