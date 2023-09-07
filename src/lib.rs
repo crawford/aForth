@@ -155,13 +155,22 @@ impl Machine {
                         pop!("drop");
                     }
                     Builtin(Dup) => self.stack.push(peek!("dup")),
+                    Builtin(Emit) => match u32::try_from(pop!("emit")) {
+                        Ok(val) => output!(
+                            &char::from_u32(val)
+                                .ok_or(Error::UnicodeInvalid(val))?
+                                .to_string(),
+                            out
+                        ),
+                        _ => return Err(Error::Static("emit: out of bounds")),
+                    },
                     Builtin(Minus) => apply!("minus", -),
                     Builtin(Mod) => apply!("mod", %),
+                    Builtin(Plus) => apply!("plus", +),
                     Builtin(Rot) => {
                         let n = pop!("rot", 2);
                         self.stack.push(n);
                     }
-                    Builtin(Plus) => apply!("plus", +),
                     Builtin(Slash) => apply!("slash", /),
                     Builtin(SlashMod) => {
                         let b = pop!("slash-mod");
@@ -183,17 +192,8 @@ impl Machine {
                             out
                         )
                     }
-                    Builtin(Star) => apply!("star", *),
-                    Builtin(Emit) => match u32::try_from(pop!("emit")) {
-                        Ok(val) => output!(
-                            &char::from_u32(val)
-                                .ok_or(Error::UnicodeInvalid(val))?
-                                .to_string(),
-                            out
-                        ),
-                        _ => return Err(Error::Static("emit: out of bounds")),
-                    },
                     Builtin(Spaces) => output!(&" ".repeat(pop!("spaces") as usize), out),
+                    Builtin(Star) => apply!("star", *),
                     Builtin(Swap) => {
                         let n = pop!("swap", 1);
                         self.stack.push(n);
