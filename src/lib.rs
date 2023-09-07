@@ -14,11 +14,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::convert::AsRef;
 use std::fmt;
 
+type Tokens = Vec<Token>;
+
 pub struct Machine {
-    dictionary: HashMap<String, Vec<Token>>,
+    dictionary: HashMap<String, Vec<Tokens>>,
     stack: Vec<i32>,
 }
 
@@ -78,7 +79,11 @@ enum Word {
 impl Machine {
     fn with_dictionary(dictionary: HashMap<String, Vec<Token>>) -> Self {
         Self {
-            dictionary,
+            dictionary: HashMap::from_iter(
+                dictionary
+                    .into_iter()
+                    .map(|(word, tokens)| (word, vec![tokens])),
+            ),
             stack: Vec::new(),
         }
     }
@@ -86,6 +91,8 @@ impl Machine {
     pub fn eval<'a>(&mut self, phrase: &'a str) -> Result<String, Error<'a>> {
         if let Some(def) = phrase.strip_prefix(':') {
             self.eval_def(def).map(|()| String::new())
+        } else if let Some(def) = phrase.strip_prefix("forget ") {
+            self.eval_undef(def).map(|()| String::new())
         } else {
             self.eval_expr(phrase)
         }
@@ -97,7 +104,21 @@ impl Machine {
             .next()
             .ok_or(Error::Static("no name specified for definition"))?;
 
-        self.dictionary.insert(name.into(), self.tokenize(words)?);
+        let tokens = self.tokenize(words)?;
+        self.dictionary.entry(name.into()).or_default().push(tokens);
+        Ok(())
+    }
+
+    fn eval_undef<'a>(&mut self, word: &'a str) -> Result<(), Error<'a>> {
+        let def = self
+            .dictionary
+            .get_mut(word)
+            .ok_or(Error::UndefinedWord(word))?;
+        if def.len() == 1 {
+            self.dictionary.remove(word);
+        } else {
+            def.pop();
+        }
         Ok(())
     }
 
@@ -260,7 +281,7 @@ impl Machine {
                     _ => tokens.extend_from_slice(
                         self.dictionary
                             .get(w)
-                            .map(AsRef::as_ref)
+                            .and_then(|def| def.last())
                             .ok_or(Error::UndefinedWord(w))?,
                     ),
                 },
