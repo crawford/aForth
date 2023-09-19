@@ -25,55 +25,42 @@ pub struct Machine {
 
 impl Default for Machine {
     fn default() -> Self {
-        use Token::*;
-        use Word::*;
-
         macro_rules! def {
-            ($name:literal, $($word:tt),+) => {
+            ($name:literal, $( $word:tt ),+) => {
                 ($name.to_string(), vec![$( def!(@, $word) ),+])
             };
             (@, $val:literal) => {
-                Number($val as i32)
+                Token::Number($val as i32)
             };
             (@, $val:ident) => {
-                $val
+                Token::Builtin(Word::$val)
             };
         }
 
-        let drop = Builtin(Drop);
-        let dup = Builtin(Dup);
-        let emit = Builtin(Emit);
-        let rot = Builtin(Rot);
-        let swap = Builtin(Swap);
-
         Self::with_dictionary(HashMap::from([
-            def!("space", ' ', emit),                     // ( -- )
-            def!("cr", '\r', emit, '\n', emit),           // ( -- )
-            def!("over", swap, dup, rot, swap),           // ( n1 n2 -- n1 n2 n1 )
-            def!("2drop", drop, drop),                    // ( d -- )
-            def!("2dup", swap, dup, rot, dup, rot, swap), // ( d -- d d )
+            def!("*", Star),                              // ( n1 n2 -- prod )
+            def!("+", Plus),                              // ( n1 n2 -- sum )
+            def!("-", Minus),                             // ( n1 n2 -- diff )
+            def!(".", Dot),                               // ( n -- )
+            def!(".S", StackPrint),                       // ( -- )
+            def!("/", Slash),                             // ( n1 n2 -- quot )
+            def!("/mod", SlashMod),                       // ( n1 n2 -- quot rem )
+            def!("2drop", Drop, Drop),                    // ( d -- )
+            def!("2dup", Swap, Dup, Rot, Dup, Rot, Swap), // ( d -- d d )
+            def!("2over", TwoOver),                       // ( d1 d2 -- d1 d2 d1 )
+            def!("2swap", TwoSwap),                       // ( d1 d2 -- d2 d1 )
+            def!("cr", '\r', Emit, '\n', Emit),           // ( -- )
+            def!("drop", Drop),                           // ( n -- )
+            def!("dup", Dup),                             // ( n -- n n )
+            def!("emit", Emit),                           // ( -- )
+            def!("mod", Mod),                             // ( n1 n2 -- rem)
+            def!("over", Swap, Dup, Rot, Swap),           // ( n1 n2 -- n1 n2 n1 )
+            def!("rot", Rot),                             // ( n1 n2 n3 -- n2 n3 n1 )
+            def!("space", ' ', Emit),                     // ( -- )
+            def!("spaces", Spaces),                       // ( n -- )
+            def!("swap", Swap),                           // ( n1 n2 -- n2 n1 )
         ]))
     }
-}
-
-#[derive(Clone, Copy)]
-enum Word {
-    Dot,        // ( n -- )
-    Drop,       // ( n -- )
-    Dup,        // ( n -- n n )
-    Emit,       // ( n -- )
-    Minus,      // ( n1 n2 -- diff )
-    Mod,        // ( n1 n2 -- rem)
-    Plus,       // ( n1 n2 -- sum )
-    Rot,        // ( n1 n2 n3 -- n2 n3 n1 )
-    Slash,      // ( n1 n2 -- quot )
-    SlashMod,   // ( n1 n2 -- quot rem )
-    Spaces,     // ( n -- )
-    StackPrint, // ( -- )
-    Star,       // ( n1 n2 -- prod )
-    Swap,       // ( n1 n2 -- n2 n1 )
-    TwoOver,    // ( d1 d2 -- d1 d2 d1 )
-    TwoSwap,    // ( d1 d2 -- d2 d1 )
 }
 
 impl Machine {
@@ -242,9 +229,6 @@ impl Machine {
         &self,
         strings: I,
     ) -> Result<Vec<Token>, Error<'a>> {
-        use Token::*;
-        use Word::*;
-
         let mut comment = false;
         let mut tokens = Vec::new();
         for string in strings {
@@ -259,32 +243,14 @@ impl Machine {
                 _ => {}
             }
 
-            match string {
-                "." => tokens.push(Builtin(Dot)),
-                "-" => tokens.push(Builtin(Minus)),
-                "+" => tokens.push(Builtin(Plus)),
-                "*" => tokens.push(Builtin(Star)),
-                "/" => tokens.push(Builtin(Slash)),
-                ".S" => tokens.push(Builtin(StackPrint)),
-                "2over" => tokens.push(Builtin(TwoOver)),
-                "2swap" => tokens.push(Builtin(TwoSwap)),
-                "mod" => tokens.push(Builtin(Mod)),
-                "/mod" => tokens.push(Builtin(SlashMod)),
-                "emit" => tokens.push(Builtin(Emit)),
-                "drop" => tokens.push(Builtin(Drop)),
-                "dup" => tokens.push(Builtin(Dup)),
-                "rot" => tokens.push(Builtin(Rot)),
-                "spaces" => tokens.push(Builtin(Spaces)),
-                "swap" => tokens.push(Builtin(Swap)),
-                w => match string.parse::<i32>() {
-                    Ok(n) => tokens.push(Token::Number(n)),
-                    _ => tokens.extend_from_slice(
-                        self.dictionary
-                            .get(w)
-                            .and_then(|def| def.last())
-                            .ok_or(Error::UndefinedWord(w))?,
-                    ),
-                },
+            match string.parse::<i32>() {
+                Ok(n) => tokens.push(Token::Number(n)),
+                _ => tokens.extend_from_slice(
+                    self.dictionary
+                        .get(string)
+                        .and_then(|def| def.last())
+                        .ok_or(Error::UndefinedWord(string))?,
+                ),
             }
         }
         Ok(tokens)
@@ -313,4 +279,24 @@ impl<'a> fmt::Display for Error<'a> {
 enum Token {
     Builtin(Word),
     Number(i32),
+}
+
+#[derive(Clone, Copy)]
+enum Word {
+    Dot,
+    Drop,
+    Dup,
+    Emit,
+    Minus,
+    Mod,
+    Plus,
+    Rot,
+    Slash,
+    SlashMod,
+    Spaces,
+    StackPrint,
+    Star,
+    Swap,
+    TwoOver,
+    TwoSwap,
 }
