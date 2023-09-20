@@ -80,6 +80,8 @@ impl Machine {
             self.eval_def(def).map(|()| String::new())
         } else if let Some(def) = phrase.strip_prefix("forget ") {
             self.eval_undef(def).map(|()| String::new())
+        } else if let Some(def) = phrase.strip_prefix("marker ") {
+            self.eval_marker(def).map(|()| String::new())
         } else {
             self.eval_expr(phrase)
         }
@@ -106,6 +108,19 @@ impl Machine {
         } else {
             def.pop();
         }
+        Ok(())
+    }
+
+    fn eval_marker<'a>(&mut self, label: &'a str) -> Result<(), Error<'a>> {
+        // Append a marker to every definition
+        for defs in self.dictionary.values_mut() {
+            defs.push(vec![Token::Marker(label.into())])
+        }
+
+        // Add the null definition
+        self.dictionary
+            .insert(label.into(), vec![vec![Token::Marker(label.into())]]);
+
         Ok(())
     }
 
@@ -218,6 +233,18 @@ impl Machine {
                         self.stack.push(n1);
                         self.stack.push(n2);
                     }
+                    Marker(ref marker) => {
+                        // Walk back every definition until the marker
+                        // is found or the history is exhausted
+                        for defs in self.dictionary.values_mut() {
+                            while let Some(def) = defs.pop() {
+                                match def.first() {
+                                    Some(Marker(m)) if m == marker => break,
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
                     Number(n) => self.stack.push(n),
                 }
 
@@ -248,7 +275,16 @@ impl Machine {
                 _ => tokens.extend_from_slice(
                     self.dictionary
                         .get(string)
-                        .and_then(|def| def.last())
+                        .and_then(|defs| {
+                            // Find the latest definition, skipping markers
+                            defs.iter()
+                                .rev()
+                                .filter(|def| match def.first() {
+                                    Some(Token::Marker(m)) if m != string => false,
+                                    _ => true,
+                                })
+                                .next()
+                        })
                         .ok_or(Error::UndefinedWord(string))?,
                 ),
             }
@@ -278,6 +314,7 @@ impl<'a> fmt::Display for Error<'a> {
 #[derive(Clone, Copy)]
 enum Token {
     Builtin(Word),
+    Marker(String),
     Number(i32),
 }
 
